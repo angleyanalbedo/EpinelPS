@@ -189,6 +189,11 @@ public class AdminCommands
                 user.BondInfo.Add(new() { NameCode = character.NameCode, Lv = 1 });
                 user.AddTrigger(Trigger.ObtainCharacter, 1, character.NameCode);
                 user.AddTrigger(Trigger.ObtainCharacterNew, 1, 0);
+
+                if (character.OriginalRare == OriginalRareType.SSR)
+                {
+                    user.AddTrigger(Trigger.ObtainCharacterSSR, 1);
+                }
             }
         }
 

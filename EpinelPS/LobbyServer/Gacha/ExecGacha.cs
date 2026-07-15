@@ -218,6 +218,11 @@ public class ExecGacha : LobbyMessage
 
                 if (characterData.OriginalRare == OriginalRareType.SSR || characterData.OriginalRare == OriginalRareType.SR)
                 {
+                    user.AddTrigger(Trigger.ObtainCharacterSSR, 1);
+                }
+
+                if (characterData.OriginalRare == OriginalRareType.SSR || characterData.OriginalRare == OriginalRareType.SR)
+                {
                     user.BondInfo.Add(new() { NameCode = characterData.NameCode, Lv = 1 });
 
                 }
