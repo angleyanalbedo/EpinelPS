@@ -170,11 +170,14 @@ public class AdminCommands
 
         int completedCount = 0;
 
+        // Collect all triggers first, then batch-add to avoid DbContext threading issues
+        var triggersToAdd = new List<(Trigger type, int value, int conditionId)>();
+
         // Trigger EventStageClear for all event stages
         foreach (var stageKv in GameData.Instance.EventDungeonStageTable)
         {
             int stageId = stageKv.Key;
-            user.AddTrigger(Trigger.EventStageClear, 1, stageId);
+            triggersToAdd.Add((Trigger.EventStageClear, 1, stageId));
             completedCount++;
         }
 
@@ -182,13 +185,19 @@ public class AdminCommands
         foreach (var eventKv in GameData.Instance.EventDungeonTable)
         {
             int eventId = eventKv.Value.Id;
-            user.AddTrigger(Trigger.EventDungeonStageClear, 1, eventId);
+            triggersToAdd.Add((Trigger.EventDungeonStageClear, 1, eventId));
 
             // Add to EventInfo if not exists
             if (!user.EventInfo.ContainsKey(eventId))
             {
                 user.EventInfo.Add(eventId, new EventData() { LastStage = 0, ClearedStages = [] });
             }
+        }
+
+        // Batch-add triggers
+        foreach (var (type, value, conditionId) in triggersToAdd)
+        {
+            user.AddTrigger(type, value, conditionId);
         }
 
         Console.WriteLine($"Completed {completedCount} event stages for user {userId}");
