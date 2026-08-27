@@ -28,6 +28,29 @@ public class GetMessages : LobbyMessage
 
     private void CheckAndCreateAvailableMessages(User user)
     {
+        // Retroactively add MessageClear triggers for conversations that exist in MessengerData
+        // This fixes conversations completed before MessageClear tracking was implemented
+        foreach (NetMessage msg in user.MessengerData)
+        {
+            // Find the condition ID for this conversation
+            foreach (var condKv in GameData.Instance.MessageConditions)
+            {
+                if (condKv.Value.Tid == msg.ConversationId)
+                {
+                    bool hasTrigger = GameContext.Triggers.Any(t =>
+                        t.UserId == user.ID &&
+                        t.Type == Trigger.MessageClear &&
+                        t.ConditionId == condKv.Key);
+
+                    if (!hasTrigger)
+                    {
+                        user.AddTrigger(Trigger.MessageClear, 1, condKv.Key);
+                    }
+                    break;
+                }
+            }
+        }
+
         foreach (KeyValuePair<int, MessengerConditionTriggerRecord> messageCondition in GameData.Instance.MessageConditions)
         {
             int conditionId = messageCondition.Key;
