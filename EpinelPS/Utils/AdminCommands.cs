@@ -173,24 +173,62 @@ public class AdminCommands
         // Collect all triggers first, then batch-add to avoid DbContext threading issues
         var triggersToAdd = new List<(Trigger type, int value, int conditionId)>();
 
-        // Trigger EventStageClear for all event stages
+        // Build stageId -> eventId mapping via EventDungeonStageTable -> EventDungeonDifficultTable -> EventDungeonTable
+        var stageToEvent = new Dictionary<int, int>();
+        var eventStages = new Dictionary<int, List<int>>();
+
         foreach (var stageKv in GameData.Instance.EventDungeonStageTable)
         {
             int stageId = stageKv.Key;
+            int stageGroup = stageKv.Value.Group;
+
+            // Find the difficult record that matches this stage's group
+            var difficult = GameData.Instance.EventDungeonDifficultTable.Values.FirstOrDefault(x => x.StageGroup == stageGroup);
+            if (difficult == null) continue;
+
+            // Find the event that matches this difficult's group
+            var dungeon = GameData.Instance.EventDungeonTable.Values.FirstOrDefault(x => x.DifficultGroup == difficult.Group);
+            if (dungeon == null) continue;
+
+            int eventId = dungeon.Id;
+            stageToEvent[stageId] = eventId;
+
+            if (!eventStages.ContainsKey(eventId))
+                eventStages[eventId] = new List<int>();
+            eventStages[eventId].Add(stageId);
+
             triggersToAdd.Add((Trigger.EventStageClear, 1, stageId));
             completedCount++;
         }
 
-        // Also trigger EventDungeonStageClear for all events
+        // Also trigger EventDungeonStageClear for all events and populate EventInfo
         foreach (var eventKv in GameData.Instance.EventDungeonTable)
         {
             int eventId = eventKv.Value.Id;
             triggersToAdd.Add((Trigger.EventDungeonStageClear, 1, eventId));
 
-            // Add to EventInfo if not exists
-            if (!user.EventInfo.ContainsKey(eventId))
+            // Populate EventInfo with all stage IDs cleared
+            if (user.EventInfo.ContainsKey(eventId))
             {
-                user.EventInfo.Add(eventId, new EventData() { LastStage = 0, ClearedStages = [] });
+                var eventData = user.EventInfo[eventId];
+                if (eventStages.ContainsKey(eventId))
+                {
+                    foreach (var stageId in eventStages[eventId])
+                    {
+                        if (!eventData.ClearedStages.Contains(stageId))
+                            eventData.ClearedStages.Add(stageId);
+                    }
+                    eventData.LastStage = eventStages[eventId].Max();
+                }
+            }
+            else
+            {
+                var clearedStages = eventStages.ContainsKey(eventId) ? eventStages[eventId].ToList() : new List<int>();
+                user.EventInfo.Add(eventId, new EventData()
+                {
+                    LastStage = clearedStages.Any() ? clearedStages.Max() : 0,
+                    ClearedStages = clearedStages
+                });
             }
         }
 
