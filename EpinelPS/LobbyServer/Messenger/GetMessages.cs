@@ -28,11 +28,49 @@ public class GetMessages : LobbyMessage
 
     private void CheckAndCreateAvailableMessages(User user)
     {
-        // Retroactively add MessageClear triggers for conversations that exist in MessengerData
-        // This fixes conversations completed before MessageClear tracking was implemented
+        // Retroactively add missing ObtainCharacter triggers for characters the user has
+        bool hasAddedNew = false;
+        bool hasAnySsr = false;
+        foreach (CharacterModel character in user.Characters)
+        {
+            if (GameData.Instance.CharacterTable.TryGetValue(character.Tid, out CharacterRecord? charData))
+            {
+                if (charData.OriginalRare == OriginalRareType.SSR)
+                    hasAnySsr = true;
+
+                bool hasObtain = GameContext.Triggers.Any(t =>
+                    t.UserId == user.ID &&
+                    t.Type == Trigger.ObtainCharacter &&
+                    t.ConditionId == charData.NameCode);
+
+                if (!hasObtain)
+                {
+                    Logging.WriteLine($"[Messenger] Retroactively adding ObtainCharacter trigger for NameCode={charData.NameCode}", LogType.Info);
+                    user.AddTrigger(Trigger.ObtainCharacter, 1, charData.NameCode);
+                    hasAddedNew = true;
+                }
+            }
+        }
+        if (hasAddedNew)
+        {
+            bool hasNew = GameContext.Triggers.Any(t => t.UserId == user.ID && t.Type == Trigger.ObtainCharacterNew);
+            if (!hasNew) user.AddTrigger(Trigger.ObtainCharacterNew, 1);
+        }
+        // Check ObtainCharacterSSR separately - don't depend on hasAddedNew
+        if (hasAnySsr)
+        {
+            bool hasSsr = GameContext.Triggers.Any(t => t.UserId == user.ID && t.Type == Trigger.ObtainCharacterSSR);
+            if (!hasSsr)
+            {
+                Logging.WriteLine("[Messenger] Retroactively adding ObtainCharacterSSR trigger", LogType.Info);
+                user.AddTrigger(Trigger.ObtainCharacterSSR, 1);
+            }
+        }
+
+        // Retroactively add missing MessageClear triggers for conversations in MessengerData
+        // This ensures the client's local condition evaluation works correctly
         foreach (NetMessage msg in user.MessengerData)
         {
-            // Find the condition ID for this conversation
             foreach (var condKv in GameData.Instance.MessageConditions)
             {
                 if (condKv.Value.Tid == msg.ConversationId)
@@ -44,9 +82,31 @@ public class GetMessages : LobbyMessage
 
                     if (!hasTrigger)
                     {
+                        Logging.WriteLine($"[Messenger] Retroactively adding MessageClear trigger for condition {condKv.Key}, Tid={msg.ConversationId}", LogType.Info);
                         user.AddTrigger(Trigger.MessageClear, 1, condKv.Key);
                     }
                     break;
+                }
+            }
+        }
+
+        // Retroactively add missing MainQuestClear triggers needed by messenger conditions
+        foreach (KeyValuePair<int, MessengerConditionTriggerRecord> condKv in GameData.Instance.MessageConditions)
+        {
+            if (condKv.Value.TriggerList == null) continue;
+            foreach (TriggerData trigger in condKv.Value.TriggerList)
+            {
+                if (trigger.Trigger == Trigger.MainQuestClear && trigger.ConditionId > 0)
+                {
+                    bool hasTrigger = GameContext.Triggers.Any(t =>
+                        t.UserId == user.ID &&
+                        t.Type == Trigger.MainQuestClear &&
+                        t.ConditionId == trigger.ConditionId);
+                    if (!hasTrigger)
+                    {
+                        Logging.WriteLine($"[Messenger] Retroactively adding MainQuestClear trigger for ConditionId={trigger.ConditionId}", LogType.Info);
+                        user.AddTrigger(Trigger.MainQuestClear, 1, trigger.ConditionId);
+                    }
                 }
             }
         }
