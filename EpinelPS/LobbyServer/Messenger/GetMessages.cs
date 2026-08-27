@@ -111,6 +111,24 @@ public class GetMessages : LobbyMessage
             }
         }
 
+        // Build a lookup of Tid -> satisfied for cleanup
+        var tidSatisfied = new Dictionary<string, bool>();
+        foreach (KeyValuePair<int, MessengerConditionTriggerRecord> mc in GameData.Instance.MessageConditions)
+        {
+            tidSatisfied[mc.Value.Tid] = IsTriggerListSatisfied(user, mc.Value.TriggerList);
+        }
+
+        // Clean up stale messages whose conditions are no longer satisfied
+        int removed = user.MessengerData.RemoveAll(m =>
+        {
+            if (m.ConversationId == null) return false;
+            if (tidSatisfied.TryGetValue(m.ConversationId, out bool satisfied))
+                return !satisfied;
+            return false;
+        });
+        if (removed > 0)
+            Logging.WriteLine($"[Messenger] Removed {removed} stale messages for user {user.ID}", LogType.Info);
+
         foreach (KeyValuePair<int, MessengerConditionTriggerRecord> messageCondition in GameData.Instance.MessageConditions)
         {
             int conditionId = messageCondition.Key;
