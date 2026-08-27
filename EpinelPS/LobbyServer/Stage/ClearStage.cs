@@ -179,6 +179,17 @@ public class ClearStage : LobbyMessage
             user.SetQuest(quest.Id, false);
             user.AddTrigger(Trigger.MainQuestClear, 1, quest.Id);
         }
+        else
+        {
+            // Some stages don't have quest records but are needed by messenger conditions.
+            // Record MainQuestClear with the stageId as a fallback.
+            bool neededByMessenger = GameData.Instance.MessageConditions.Values.Any(c =>
+                c.TriggerList?.Any(t => t.Trigger == Trigger.MainQuestClear && t.ConditionId == clearedStageId) == true);
+            if (neededByMessenger)
+            {
+                user.AddTrigger(Trigger.MainQuestClear, 1, clearedStageId);
+            }
+        }
 
         // TODO: Is this the right place to add default characters?
         // Stage 1-4 BOSS
