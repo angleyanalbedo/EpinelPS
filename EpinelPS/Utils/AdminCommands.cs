@@ -163,6 +163,39 @@ public class AdminCommands
         return RunCmdResponse.OK;
     }
 
+    public static RunCmdResponse CompleteAllEventStages(ulong userId)
+    {
+        User? user = JsonDb.Instance.Users.FirstOrDefault(x => x.ID == userId);
+        if (user == null) return new RunCmdResponse() { error = "invalId user ID" };
+
+        int completedCount = 0;
+
+        // Trigger EventStageClear for all event stages
+        foreach (var stageKv in GameData.Instance.EventDungeonStageTable)
+        {
+            int stageId = stageKv.Key;
+            user.AddTrigger(Trigger.EventStageClear, 1, stageId);
+            completedCount++;
+        }
+
+        // Also trigger EventDungeonStageClear for all events
+        foreach (var eventKv in GameData.Instance.EventDungeonTable)
+        {
+            int eventId = eventKv.Value.Id;
+            user.AddTrigger(Trigger.EventDungeonStageClear, 1, eventId);
+
+            // Add to EventInfo if not exists
+            if (!user.EventInfo.ContainsKey(eventId))
+            {
+                user.EventInfo.Add(eventId, new EventData() { LastStage = 0, ClearedStages = [] });
+            }
+        }
+
+        Console.WriteLine($"Completed {completedCount} event stages for user {userId}");
+        JsonDb.Save();
+        return RunCmdResponse.OK;
+    }
+
     public static RunCmdResponse AddAllCharacters(User user)
     {
         // Group characters by NameCode and always add those with GradeCoreId == 11, 103, and include GradeCoreId == 201
