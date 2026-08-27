@@ -11,6 +11,7 @@ public class GetMessages : LobbyMessage
         User user = GetUser();
 
         CheckAndCreateAvailableMessages(user);
+        CheckAndEnrollSubQuests(user);
 
         ResGetMessages response = new();
 
@@ -31,7 +32,7 @@ public class GetMessages : LobbyMessage
             int conditionId = messageCondition.Key;
             MessengerConditionTriggerRecord msgCondition = messageCondition.Value;
 
-            if (IsMessageConditionSatisfied(user, conditionId))
+            if (IsTriggerListSatisfied(user, msgCondition.TriggerList))
             {
                 bool messageExists = user.MessengerData.Any(m => m.ConversationId == msgCondition.Tid);
                 if (!messageExists)
@@ -48,14 +49,37 @@ public class GetMessages : LobbyMessage
         }
     }
 
-    private bool IsMessageConditionSatisfied(User user, int conditionId)
+    private void CheckAndEnrollSubQuests(User user)
     {
-        if (!GameData.Instance.MessageConditions.TryGetValue(conditionId, out MessengerConditionTriggerRecord? msgCondition))
+        foreach (KeyValuePair<int, SubQuestRecord> subQuestKv in GameData.Instance.Subquests)
         {
-            return false;
-        }
+            SubQuestRecord subQuest = subQuestKv.Value;
 
-        foreach (TriggerData trigger in msgCondition.TriggerList)
+            // Check prerequisite subquest
+            if (subQuest.BeforeSubQuestId > 0)
+            {
+                if (!user.SubQuestData.TryGetValue(subQuest.BeforeSubQuestId, out bool prevCompleted) || !prevCompleted)
+                    continue;
+            }
+
+            // Check trigger conditions
+            if (!IsTriggerListSatisfied(user, subQuest.TriggerList))
+                continue;
+
+            // Auto-enroll if not already enrolled
+            if (!user.SubQuestData.ContainsKey(subQuest.Id))
+            {
+                user.SetSubQuest(subQuest.Id, false);
+            }
+        }
+    }
+
+    private bool IsTriggerListSatisfied(User user, List<TriggerData> triggerList)
+    {
+        if (triggerList == null)
+            return true;
+
+        foreach (TriggerData trigger in triggerList)
         {
             if (trigger.Trigger == Data.Trigger.None || trigger.ConditionId == 0)
                 continue;

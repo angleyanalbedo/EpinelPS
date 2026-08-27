@@ -189,6 +189,8 @@ public class AdminCommands
                 user.BondInfo.Add(new() { NameCode = character.NameCode, Lv = 1 });
                 user.AddTrigger(Trigger.ObtainCharacter, 1, character.NameCode);
                 user.AddTrigger(Trigger.ObtainCharacterNew, 1, 0);
+                if (character.OriginalRare == OriginalRareType.SSR)
+                    user.AddTrigger(Trigger.ObtainCharacterSSR, 1);
             }
         }
 
@@ -550,6 +552,15 @@ public class AdminCommands
                 Tid = characterId,
                 UltimateLevel = 1
             });
+
+            if (GameData.Instance.CharacterTable.TryGetValue(characterId, out CharacterRecord? charData))
+            {
+                user.BondInfo.Add(new() { NameCode = charData.NameCode, Lv = 1 });
+                user.AddTrigger(Trigger.ObtainCharacter, 1, charData.NameCode);
+                user.AddTrigger(Trigger.ObtainCharacterNew, 1);
+                if (charData.OriginalRare == OriginalRareType.SSR)
+                    user.AddTrigger(Trigger.ObtainCharacterSSR, 1);
+            }
 
             Console.WriteLine($"Added character {characterId} to user");
             JsonDb.Save();
