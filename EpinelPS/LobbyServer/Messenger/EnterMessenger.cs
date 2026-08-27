@@ -35,7 +35,7 @@ public class EnterMessenger : LobbyMessage
 
         response.Message = user.CreateMessage(conversation.Value);
 
-        Logging.WriteLine($"[Messenger] Enter: req.Tid={req.Tid}, opener.Tid={opener.Tid}, recording MessageClear with ConditionId={req.Tid}", LogType.Info);
+        Logging.WriteLine($"[Messenger] Enter: user={user.ID}, Tid={opener.Tid}, RoomId={conversation.Value.RoomId}", LogType.Info);
         user.AddTrigger(Trigger.MessageClear, 1, req.Tid);
 
         JsonDb.Save();

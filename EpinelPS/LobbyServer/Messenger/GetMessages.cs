@@ -139,7 +139,7 @@ public class GetMessages : LobbyMessage
 
                     if (conversation.Value != null)
                     {
-                        Logging.WriteLine($"[Messenger] Creating message for condition {conditionId}, Tid={msgCondition.Tid}", LogType.Info);
+                        Logging.WriteLine($"[Messenger] Creating message for condition {conditionId}, Tid={msgCondition.Tid}, RoomId={conversation.Value.RoomId}, user={user.ID}", LogType.Info);
                         user.CreateMessage(conversation.Value);
                     }
                     else
