@@ -135,6 +135,7 @@ public class User
     public List<int> CompletedAchievements { get; set; } = [];
     public List<NetMessage> MessengerData { get; set; } = [];
     public ulong LastMessageId { get; set; } = 1;
+    public List<NetPickedMessage> PickedMessages { get; set; } = [];
     public long LastBadgeSeq { get; set; } = 1;
     public Dictionary<int, LostSectorData> LostSectorData { get; set; } = [];
 

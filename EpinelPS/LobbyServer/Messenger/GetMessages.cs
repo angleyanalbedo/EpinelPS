@@ -1,4 +1,5 @@
 ﻿using EpinelPS.Data;
+using EpinelPS.Utils;
 
 namespace EpinelPS.LobbyServer.Messenger;
 
@@ -32,19 +33,58 @@ public class GetMessages : LobbyMessage
             int conditionId = messageCondition.Key;
             MessengerConditionTriggerRecord msgCondition = messageCondition.Value;
 
+            Logging.WriteLine($"[Messenger] Checking condition {conditionId}, Tid={msgCondition.Tid}, MessageType={msgCondition.MessageType}, TriggerCount={msgCondition.TriggerList?.Count ?? 0}", LogType.Debug);
+
             if (IsTriggerListSatisfied(user, msgCondition.TriggerList))
             {
                 bool messageExists = user.MessengerData.Any(m => m.ConversationId == msgCondition.Tid);
                 if (!messageExists)
                 {
+                    // For RandomMessage/DailyMessage, only create if already picked
+                    if (msgCondition.MessageType == MessageType.RandomMessage || msgCondition.MessageType == MessageType.DailyMessage)
+                    {
+                        bool picked = user.PickedMessages.Any(p => p.ConversationId == msgCondition.Tid);
+                        if (!picked)
+                        {
+                            Logging.WriteLine($"[Messenger] Condition {conditionId} satisfied but not picked yet, skipping", LogType.Debug);
+                            continue;
+                        }
+                    }
+
                     KeyValuePair<string, MessengerDialogRecord> conversation = GameData.Instance.Messages.FirstOrDefault(x =>
                         x.Value.ConversationId == msgCondition.Tid && x.Value.IsOpener);
 
                     if (conversation.Value != null)
                     {
+                        Logging.WriteLine($"[Messenger] Creating message for condition {conditionId}, Tid={msgCondition.Tid}", LogType.Info);
                         user.CreateMessage(conversation.Value);
                     }
+                    else
+                    {
+                        Logging.WriteLine($"[Messenger] No opener found for Tid={msgCondition.Tid}", LogType.Warning);
+                    }
                 }
+            }
+            else
+            {
+                Logging.WriteLine($"[Messenger] Condition {conditionId} NOT satisfied for user {user.ID}", LogType.Debug);
+                LogUnsatisfiedTriggers(user, msgCondition.TriggerList);
+            }
+        }
+    }
+
+    private void LogUnsatisfiedTriggers(User user, List<TriggerData>? triggerList)
+    {
+        if (triggerList == null) return;
+
+        foreach (TriggerData trigger in triggerList)
+        {
+            if (trigger.Trigger == Data.Trigger.None) continue;
+
+            bool satisfied = CheckTriggerCondition(user, trigger);
+            if (!satisfied)
+            {
+                Logging.WriteLine($"[Messenger]   UNSATISFIED: Trigger={trigger.Trigger}, ConditionId={trigger.ConditionId}, ConditionValue={trigger.ConditionValue}", LogType.Debug);
             }
         }
     }
@@ -69,19 +109,20 @@ public class GetMessages : LobbyMessage
             // Auto-enroll if not already enrolled
             if (!user.SubQuestData.ContainsKey(subQuest.Id))
             {
+                Logging.WriteLine($"[Messenger] Auto-enrolling subquest {subQuest.Id} for user {user.ID}", LogType.Info);
                 user.SetSubQuest(subQuest.Id, false);
             }
         }
     }
 
-    private bool IsTriggerListSatisfied(User user, List<TriggerData> triggerList)
+    private bool IsTriggerListSatisfied(User user, List<TriggerData>? triggerList)
     {
         if (triggerList == null)
             return true;
 
         foreach (TriggerData trigger in triggerList)
         {
-            if (trigger.Trigger == Data.Trigger.None || trigger.ConditionId == 0)
+            if (trigger.Trigger == Data.Trigger.None)
                 continue;
 
             if (!CheckTriggerCondition(user, trigger))
