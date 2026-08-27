@@ -24,8 +24,15 @@ public class GameContext : DbContext
     /// GameContext instance. Should only be used in console thread.
     /// </summary>
     public static GameContext Instance { get; private set; } = null!;
+    public static DbContextOptions<GameContext> Options { get; private set; } = null!;
     public GameContext(DbContextOptions<GameContext> options) : base(options)
     {
+        Options = options;
         Instance = this;
+    }
+
+    public static GameContext CreateNew()
+    {
+        return new GameContext(Options);
     }
 }

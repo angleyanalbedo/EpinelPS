@@ -220,6 +220,7 @@ public class User
     
     public TriggerModelNew AddTrigger(Trigger type, int value, int conditionId = 0)
     {
+        using var ctx = GameContext.CreateNew();
         TriggerModelNew t = new()
         {
             Type = type,
@@ -228,9 +229,9 @@ public class User
             Value = value
         };
 
-        var gameUser = GameContext.Instance.Users.Find(ID) ?? throw new InvalidDataException("user not found in Users table");
+        var gameUser = ctx.Users.Find(ID) ?? throw new InvalidDataException("user not found in Users table");
         gameUser.Triggers.Add(t);
-        GameContext.Instance.SaveChanges();
+        ctx.SaveChanges();
 
         return t;
     }
