@@ -21,6 +21,10 @@
 	  <DebugType>none</DebugType>
 	</PropertyGroup>
 
+	<PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+	  <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="ASodium" Version="0.6.7" />
 		<PackageReference Include="DnsClient" Version="1.8.0" />
